@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 
 // Styles
 import './SkeletonLoader.scss';
@@ -32,20 +31,20 @@ export const rootTypes = {
   text: 'text',
 };
 
-function genBone(type, children) {
-  return (
-    <div className={`skeleton-loader__bone skeleton-loader__${type}`}>
-      {children}
-    </div>
-  );
-}
+const genBone = (type, children, index) => (
+  <div key={index} className={`skeleton-loader__bone skeleton-loader__${type}`}>
+    {children}
+  </div>
+);
 
-function genBones(bone) {
+const genBones = (bone) => {
   const [type, length] = bone.split('@');
-  return Array.from({ length }).map(() => genStructure(type));
-}
+  return Array.from({ length: Number(length) }).map((_, index) =>
+    genStructure(type, index)
+  );
+};
 
-function genStructure(type) {
+const genStructure = (type, parentIndex = '') => {
   let children = [];
 
   if (!type) return children;
@@ -54,58 +53,55 @@ function genStructure(type) {
 
   if (type === bone) {
     // End of recursion, do nothing
-  } else if (type.includes(',')) return mapBones(type);
+  } else if (type.includes(',')) return mapBones(type, parentIndex);
   else if (type.includes('@')) return genBones(type);
-  else if (bone.includes(',')) children = mapBones(bone);
+  else if (bone.includes(',')) children = mapBones(bone, parentIndex);
   else if (bone.includes('@')) children = genBones(bone);
-  else if (bone) children.push(genStructure(bone));
+  else if (bone) children.push(genStructure(bone, parentIndex));
 
-  return [genBone(type, children)];
-}
+  return [genBone(type, children, parentIndex)];
+};
 
-function mapBones(bones) {
-  return bones.replace(/\s/g, '').split(',').map(genStructure);
-}
+const mapBones = (bones, parentIndex = '') => {
+  return bones
+    .replace(/\s/g, '')
+    .split(',')
+    .map((bone, index) => genStructure(bone, `${parentIndex}-${index}`))
+    .flat();
+};
 
-function SkeletonLoader(props) {
+const SkeletonLoader = ({
+  boilerplate = false,
+  color,
+  loading = false,
+  loadingText = '',
+  type = 'image',
+  maxWidth,
+  children,
+}) => {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
     const wrapInArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
-    setItems(genStructure(wrapInArray(props.type).join(',')));
-  }, [props.type]);
+    setItems(genStructure(wrapInArray(type).join(',')));
+  }, [type]);
 
-  const isLoading = !props.children || props.loading;
+  const isLoading = !children || loading;
 
   return (
     <div
       className={`skeleton-loader ${
-        props.boilerplate ? 'skeleton-loader--boilerplate' : ''
+        boilerplate ? 'skeleton-loader--boilerplate' : ''
       }`}
-      aria-busy={!props.boilerplate ? isLoading : undefined}
-      aria-live={!props.boilerplate ? 'polite' : undefined}
-      aria-label={!props.boilerplate ? props.loadingText : undefined}
-      role={!props.boilerplate ? 'alert' : undefined}
+      aria-busy={!boilerplate ? isLoading : undefined}
+      aria-live={!boilerplate ? 'polite' : undefined}
+      aria-label={!boilerplate ? loadingText : undefined}
+      role={!boilerplate ? 'alert' : undefined}
+      style={{ maxWidth, color }}
     >
-      {isLoading ? items : props.children}
+      {isLoading ? items : children}
     </div>
   );
-}
-
-SkeletonLoader.propTypes = {
-  boilerplate: PropTypes.bool,
-  color: PropTypes.string,
-  loading: PropTypes.bool,
-  loadingText: PropTypes.string,
-  type: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
-  maxWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-};
-
-SkeletonLoader.defaultProps = {
-  boilerplate: false,
-  loading: false,
-  loadingText: '',
-  type: 'image',
 };
 
 export default SkeletonLoader;
